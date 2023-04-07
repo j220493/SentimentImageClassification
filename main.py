@@ -37,7 +37,7 @@ for folder in imageClasses:
 len(os.listdir(os.path.join('happySad', 'happy')))
 len(os.listdir(os.path.join('happySad', 'sad')))
 
-# Creating final folder (Only once) and moving into new folder
+# Creating final folder and moving into new folder (Only once)
 os.mkdir('smallData')
 os.mkdir(os.path.join('smallData', 'happy'))
 os.mkdir(os.path.join('smallData', 'sad'))
@@ -62,6 +62,7 @@ batch = dataIterator.next()
 batch[0].shape
 
 # Plotting set of images
+batch = dataIterator.next()
 fig, ax = plt.subplots(ncols=4, figsize=(20, 20))
 for idx, img in enumerate(batch[0][:4]):
     ax[idx].imshow(img.astype(int))
@@ -105,7 +106,7 @@ model.compile('adam', loss=tf.losses.BinaryCrossentropy(), metrics=['accuracy'])
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir='log')
 
 # Training model
-hist = model.fit(train, epochs=30, validation_data=val, callbacks=[tensorboard_callback])
+hist = model.fit(train, epochs=20, validation_data=val, callbacks=[tensorboard_callback])
 
 # Evaluating training performance
 fig = plt.figure()
@@ -138,10 +139,12 @@ for batch in val.as_numpy_iterator():
     cm = confusion_matrix(y, yhat)
 
 # Evaluating test
-fig, ax = plt.subplots(ncols=2, figsize=(10, 10))
-for idx, img in enumerate(test.as_numpy_iterator().next()[0][:3]):
-    ax[idx].imshow(img.astype(int))
-    ax[idx].title.set_text(test.as_numpy_iterator().next()[1][idx])
+testBatches = test.as_numpy_iterator().next()
+print(testBatches[0].shape)
+fig, ax = plt.subplots(ncols=4, figsize=(10, 10))
+for idx, img in enumerate(testBatches[0][:4]):
+    ax[idx].imshow(img.astype(float))
+    ax[idx].title.set_text(testBatches[1][idx])
 
 for batch in test.as_numpy_iterator():
     X, y = batch  # Extracting elements from a batch (each batch is composed by X array and Y labels)
@@ -155,7 +158,7 @@ print("Precision:", pre.result().numpy(),
       "\nAccuracy:", acc.result().numpy())
 
 # Evaluating new data
-newTest = Image.open('jorgeFeliz.jpg')
+newTest = Image.open('esposa.jpg')
 newTest = newTest.rotate(270)
 imgplot = plt.imshow(newTest)
 plt.show()
