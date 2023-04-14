@@ -11,6 +11,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout
 from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy
+from tensorflow.keras.models import load_model
 import numpy as np
 
 # Extracting dataset (only once)
@@ -39,6 +40,8 @@ print(len(os.listdir(os.path.join('happySad', 'sad'))))
 
 # Creating pipline
 data = tf.keras.utils.image_dataset_from_directory('happySad', batch_size=20, image_size=(256, 256))
+# data = tf.keras.utils.image_dataset_from_directory('happySad', batch_size=20, image_size=(256, 256), shuffle=False)
+# data = data.shuffle(1000, seed=100, reshuffle_each_iteration=False)
 data.class_names
 
 # Image iterator
@@ -61,7 +64,7 @@ print(data.as_numpy_iterator().next()[0].min(),
 batches = len(data)  # Number of different batches
 trainSizeBatches = int(batches * .7)
 valSizeBatches = int(batches * .2) + 1
-testSizeBatches = int(batches * .1) + 1
+testSizeBatches = int(batches * .1)
 trainSizeBatches + valSizeBatches + testSizeBatches
 
 # Creating datasets
@@ -71,18 +74,17 @@ test = data.skip(trainSizeBatches + valSizeBatches).take(testSizeBatches)
 print("Number of batches for train:", len(train))
 
 # Model architecture
+initializer = tf.keras.initializers.GlorotUniform(seed=1234)
 model = Sequential()
-model.add(tf.keras.layers.RandomFlip('horizontal'))
-# model.add(tf.keras.layers.RandomZoom(0.2))
-# model.add(tf.keras.layers.RandomRotation(0.2))
 model.add(tf.keras.layers.Rescaling(1 / 255, offset=-1))
-model.add(Conv2D(16, (3, 3), 1, activation='relu'))
+model.add(Conv2D(16, (3, 3), 1, activation='relu', kernel_initializer=initializer))
 model.add(MaxPooling2D())
 model.add(Conv2D(32, (3, 3), 1, activation='relu'))
-model.add(MaxPooling2D())
-model.add(Conv2D(16, (3, 3), 1, activation='relu'))
+#model.add(MaxPooling2D())
+#model.add(Conv2D(16, (3, 3), 1, activation='relu'))
 model.add(MaxPooling2D())
 model.add(Flatten())
+model.add(Dropout(0.2))
 model.add(Dense(256, activation='relu'))
 model.add(Dense(1, activation='sigmoid'))
 model.build(input_shape=(None, 256, 256, 3))
@@ -90,13 +92,13 @@ model.summary()
 
 # Compiling model
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss=tf.losses.BinaryCrossentropy(),
-              metrics=['accuracy'])
+              metrics=[tf.keras.metrics.Precision()])
 
 # Creating log file
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir='log')
 
 # Training model
-hist = model.fit(train, epochs=45, validation_data=val, callbacks=[tensorboard_callback])
+hist = model.fit(train, epochs=30, validation_data=val, callbacks=[tensorboard_callback])
 
 # Evaluating training performance
 fig = plt.figure()
@@ -146,17 +148,24 @@ print("Precision:", pre.result().numpy(),
       "\nRecall:", re.result().numpy(),
       "\nAccuracy:", acc.result().numpy())
 
-# Evaluating new data
-newTest = Image.open('jorgeFeliz2.jpg')
+# Saving model
+path = os.path.join('/Users/macbookpro/Documents/DeepLearning/imageSentimentClassification', 'sentimentClassifier.h5')
+model.save(path)
+
+# Loading model
+newModel = load_model('sentimentClassifier.h5')
+
+# Loading new data
+newTest = Image.open('esposaTriste.jpeg')
 newTest = newTest.rotate(270)
 imgplot = plt.imshow(newTest)
 plt.show()
 
 # Rescaling imagen (model trained with 255x255 images)
 resized = tf.image.resize(np.array(newTest), (256, 256))
-imgplot = plt.imshow((resized / 255))
+imgplot = plt.imshow((resized.numpy().astype(int)))
 plt.show()
 
 # Predicting
-yhat = model.predict(np.expand_dims(resized, 0))
+yhat = newModel.predict(np.expand_dims(resized, 0))
 print(yhat)
